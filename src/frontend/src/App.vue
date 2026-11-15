@@ -13,9 +13,32 @@ import WeCom from './components/icons/WeCom.vue';
 
 const simplifiedToTaiwanTraditional = OpenCC.Converter({ from: 'cn', to: 'twp' });
 const localeTextCache = new Map();
+// NOTE: OpenCC 會做通用轉換，以下例外使用台灣介面的慣用詞與地名。
+const TAIWAN_TERM_OVERRIDES = [
+    ['中國台北', '台灣（台北）'],
+    ['中國香港', '香港'],
+    ['令牌', '權杖'],
+    ['閾值', '門檻值'],
+    ['自動續期', '自動續約'],
+    ['手動續期', '手動續約'],
+    ['上次續期', '上次續約'],
+    ['續期成功', '續約成功'],
+    ['續期', '續約'],
+    ['續費歷史', '續費紀錄'],
+    ['歷史記錄', '歷史紀錄'],
+    ['收件人', '收件者'],
+    ['伺服器URL', '伺服器網址'],
+];
 const convertToTraditionalChinese = (text) => {
     const sourceText = String(text ?? '');
-    if (!localeTextCache.has(sourceText)) localeTextCache.set(sourceText, simplifiedToTaiwanTraditional(sourceText));
+    if (!localeTextCache.has(sourceText)) {
+        const convertedText = simplifiedToTaiwanTraditional(sourceText);
+        const taiwanText = TAIWAN_TERM_OVERRIDES.reduce(
+            (result, [sourceTerm, targetTerm]) => result.replaceAll(sourceTerm, targetTerm),
+            convertedText,
+        );
+        localeTextCache.set(sourceText, taiwanText);
+    }
     return localeTextCache.get(sourceText);
 };
 const convertLocaleMessages = (value) => {
@@ -2163,8 +2186,8 @@ const manualRenew = async (row) => {
 const timezoneList = [
     { label: 'UTC (世界协调时间)', value: 'UTC' },
     { label: 'Asia/Shanghai (中国上海/北京)', value: 'Asia/Shanghai' },
-    { label: 'Asia/Hong_Kong (中国香港)', value: 'Asia/Hong_Kong' },
-    { label: 'Asia/Taipei (中国台北)', value: 'Asia/Taipei' },
+    { label: 'Asia/Hong_Kong (香港)', value: 'Asia/Hong_Kong' },
+    { label: 'Asia/Taipei (台湾)', value: 'Asia/Taipei' },
     { label: 'Asia/Tokyo (日本东京)', value: 'Asia/Tokyo' },
     { label: 'Asia/Seoul (韩国首尔)', value: 'Asia/Seoul' },
     { label: 'Asia/Singapore (新加坡)', value: 'Asia/Singapore' },
