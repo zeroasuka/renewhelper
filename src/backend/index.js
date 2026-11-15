@@ -5,6 +5,8 @@
  * See CHANGELOG.md for history.
  */
 import { HTML } from '../html-template.js';
+
+const normalizeLanguage = (language) => language === 'en' || language === 'zh-TW' ? language : 'zh';
 // APP_VERSION 将在构建时由 esbuild 注入 (__BUILD_VERSION__)
 const APP_VERSION = __BUILD_VERSION__;
 //接入免费汇率API
@@ -341,11 +343,14 @@ const Auth = {
 };
 
 const DEFAULT_CALENDAR_SUBSCRIPTION_ID = "default";
-const getDefaultCalendarSubscriptionName = (lang = "zh") =>
-    lang === "en" ? "All Reminders" : "全部提醒";
+const getDefaultCalendarSubscriptionName = (language = "zh") => {
+    const lang = normalizeLanguage(language);
+    if (lang === "en") return "All Reminders";
+    return "全部提醒";
+};
 
 function normalizeCalendarSubscriptions(settings = {}) {
-    const lang = settings.language === "en" ? "en" : "zh";
+    const lang = normalizeLanguage(settings.language);
     const source = Array.isArray(settings.calendarSubscriptions)
         ? settings.calendarSubscriptions
         : [];
@@ -511,7 +516,7 @@ const DataStore = {
         const defaults = {
             enableNotify: true,
             autoDisableDays: 30,
-            language: "zh",
+            language: "zh-TW",
             timezone: "UTC",
             defaultCurrency: "CNY",
             jwtSecret: "",
@@ -1332,15 +1337,41 @@ const I18N = {
         editLastRenewHint: "请在「历史记录」中修改",
         note: "备注",
         lblEnable: "启用",
-        lblToken: "令牌 (Token)",
+        lblToken: "權杖 (Token)",
         lblApiKey: "API Key",
         lblChatId: "会话ID",
         lblServer: "服务器URL",
         lblDevKey: "设备Key",
         lblFrom: "发件人",
-        lblTo: "收件人",
+        lblTo: "收件者",
         lblNotifyTime: "提醒时间",
         btnTest: "发送测试",
+    },
+    'zh-TW': {
+        scan: "掃描 %s 個服務",
+        autoDisable: "🚫 [%s] 過期 %s 天，已自動停用",
+        autoRenew: "🔄 [%s] 自動續期成功",
+        today: "今天到期",
+        overdue: "過期 %s 天",
+        left: "剩 %s 天",
+        checkLog: "[CHECK] %s | %s",
+        thres: "(閾值: %s)",
+        pushTitle: "RenewHelper 報告",
+        secDis: "🚫 服務已停用",
+        secRen: "🔄 服務已續期",
+        secAle: "⏳ 服務即將到期",
+        editLastRenewHint: "請在「歷史記錄」中修改",
+        note: "備註",
+        lblEnable: "啟用",
+        lblToken: "令牌 (Token)",
+        lblApiKey: "API Key",
+        lblChatId: "對話 ID",
+        lblServer: "伺服器URL",
+        lblDevKey: "裝置金鑰",
+        lblFrom: "寄件者",
+        lblTo: "收件人",
+        lblNotifyTime: "提醒時間",
+        btnTest: "傳送測試",
     },
     en: {
         scan: "Scan %s items",
@@ -1375,7 +1406,7 @@ function t(k, l, ...a) {
     return s;
 }
 
-async function checkAndRenew(env, isSched, lang = "zh") {
+async function checkAndRenew(env, isSched, lang = null) {
     // 使用 getItemsPackage 获取带版本的数据
     const [conf, pkg] = await Promise.all([
         DataStore.getSettings(env),
@@ -1383,6 +1414,7 @@ async function checkAndRenew(env, isSched, lang = "zh") {
     ]);
 
     const s = conf;
+    lang = normalizeLanguage(lang || s.language);
     const items = pkg.items;
     const currentVersion = pkg.version;
 
@@ -2044,13 +2076,19 @@ app.get("/api/calendar.ics", async (req, env, url) => {
         if (!selectedItemIds) return true;
         return selectedItemIds.has(String(item.id));
     });
-    const lang = settings.language === "en" ? "en" : "zh";
+    const lang = normalizeLanguage(settings.language);
 
     const T = {
         zh: {
             lblCycle: "提醒周期",
             lblLast: "上次续费",
             note: "备注",
+            unit: { day: "天", month: "月", year: "年" },
+        },
+        "zh-TW": {
+            lblCycle: "提醒週期",
+            lblLast: "上次續費",
+            note: "備註",
             unit: { day: "天", month: "月", year: "年" },
         },
         en: {
@@ -2123,13 +2161,17 @@ app.get("/api/calendar.ics", async (req, env, url) => {
         if (item.type === 'repeat' && item.repeat) {
             // repeat 模式：生成规则文字描述
             const r = item.repeat;
-            const isZh = lang === 'zh';
-            const freqMap = isZh
-                ? { daily: '天', weekly: '周', monthly: '个月', yearly: '年' }
-                : { daily: 'day(s)', weekly: 'week(s)', monthly: 'month(s)', yearly: 'year(s)' };
-            const wdMap = isZh
-                ? ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-                : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const isZh = lang !== 'en';
+            const freqMap = lang === 'zh-TW'
+                ? { daily: '天', weekly: '週', monthly: '個月', yearly: '年' }
+                : isZh
+                    ? { daily: '天', weekly: '周', monthly: '个月', yearly: '年' }
+                    : { daily: 'day(s)', weekly: 'week(s)', monthly: 'month(s)', yearly: 'year(s)' };
+            const wdMap = lang === 'zh-TW'
+                ? ['週日', '週一', '週二', '週三', '週四', '週五', '週六']
+                : isZh
+                    ? ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+                    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const monthAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             let desc = isZh
                 ? `每 ${r.interval} ${freqMap[r.freq] || r.freq}`
@@ -2146,7 +2188,8 @@ app.get("/api/calendar.ics", async (req, env, url) => {
                 const ws = r.byweekday.map(w => wdMap[w]).join(', ');
                 desc += isZh ? ` ${ws}` : ` on ${ws}`;
             }
-            descParts.push(`${isZh ? '重复规则' : 'Rule'}: ${desc}`);
+            const ruleLabel = lang === 'zh-TW' ? '重複規則' : isZh ? '重复规则' : 'Rule';
+            descParts.push(`${ruleLabel}: ${desc}`);
         } else {
             const unitLabel = T.unit[item.cycleUnit] || item.cycleUnit;
             descParts.push(`${T.lblCycle}: ${item.intervalDays}${unitLabel}`);
@@ -2200,4 +2243,3 @@ export default {
             .catch((err) => error("SERVER ERROR: " + err.message, 500));
     },
 };
-
