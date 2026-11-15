@@ -15,6 +15,12 @@ npm run build
 
 ## 部署到 Cloudflare
 
+### 一鍵建立新 Worker
+
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/zeroasuka/renewhelper)
+
+此按鈕使用本 Fork 的程式碼。Cloudflare 會偵測 `package.json` 中的建置與部署指令；請確認部署設定會使用本專案指令，並在部署前完成建置。若要更新已在使用中的 Worker 並保留原有資料，請使用下方的手動更新或 GitHub Actions，沿用目前的 `RENEW_KV` 命名空間。
+
 ### 手動更新現有 Worker
 
 1. 在 Cloudflare Dashboard 開啟 `renewhelper2`。
