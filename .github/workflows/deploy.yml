@@ -14,6 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Build Worker
+        run: |
+          npm install
+          npm run build
+
       - name: Inject KV ID
         run: |
           sed -i 's/^\s*id = ""/id = "${{ secrets.CF_KV_ID }}"/' wrangler.toml

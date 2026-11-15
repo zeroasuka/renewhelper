@@ -1,6 +1,6 @@
 # 🕒 RenewHelper - 时序·守望 (Service Lifecycle Manager)
 
-[English](./README_EN.md) | **中文**
+[English](./README_EN.md) | [繁體中文](./README-zh-TW.md) | **中文**
 
 ![Docker Pulls](https://img.shields.io/docker/pulls/ieax/renewhelper?logo=docker)
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange?logo=cloudflare)

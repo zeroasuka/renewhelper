@@ -3,17 +3,34 @@ import { ref, computed, onMounted, onUnmounted, nextTick, reactive, watch } from
 import { ElMessage, ElMessageBox } from 'element-plus';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
+import zhTw from 'element-plus/es/locale/lang/zh-tw';
 import en from 'element-plus/es/locale/lang/en';
+import OpenCC from 'opencc-js';
 import ServerChan3 from './components/icons/ServerChan3.vue';
 import DingTalk from './components/icons/DingTalk.vue';
 import Lark from './components/icons/Lark.vue';
 import WeCom from './components/icons/WeCom.vue';
+
+const simplifiedToTaiwanTraditional = OpenCC.Converter({ from: 'cn', to: 'twp' });
+const localeTextCache = new Map();
+const convertToTraditionalChinese = (text) => {
+    const sourceText = String(text ?? '');
+    if (!localeTextCache.has(sourceText)) localeTextCache.set(sourceText, simplifiedToTaiwanTraditional(sourceText));
+    return localeTextCache.get(sourceText);
+};
+const convertLocaleMessages = (value) => {
+    if (typeof value === 'string') return convertToTraditionalChinese(value);
+    if (Array.isArray(value)) return value.map(convertLocaleMessages);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, convertLocaleMessages(child)]));
+};
 
 // 图标解构
 const { Edit, Delete, Plus, VideoPlay, Setting, Bell, Document, Lock, Monitor, SwitchButton, Calendar, Timer, Files, AlarmClock, Warning, Search, Cpu, Upload, Download, Link, Connection, Message, Promotion, Iphone, Moon, Sunny, RefreshRight, More, ArrowDown, Tickets, Sort, ArrowLeft, ArrowRight, InfoFilled, Close, Coin, Position, Notification, Comment, SuccessFilled, WarningFilled, DocumentCopy } = ElementPlusIconsVue;
 
 // Element Plus 语言包
 const ZhCn = zhCn;
+const ZhTw = zhTw;
 const ElementPlusLocaleEn = en;
 const Money = Coin;
 
@@ -266,7 +283,8 @@ const dataVersion = ref(0); // 新增版本号状态
 const hasNewVersion = ref(false); // 版本更新提示
 const newVersionCode = ref('');
 const dialogVisible = ref(false), settingsVisible = ref(false), historyVisible = ref(false), historyLoading = ref(false), historyLogs = ref([]);
-const checking = ref(false), logs = ref([]), displayLogs = ref([]), isEdit = ref(false), lang = ref('zh'), currentTag = ref(''), searchKeyword = ref('');
+const checking = ref(false), logs = ref([]), displayLogs = ref([]), isEdit = ref(false), lang = ref('zh-TW'), currentTag = ref(''), searchKeyword = ref('');
+const languageText = (simplifiedText, englishText) => lang.value === 'en' ? englishText : lang.value === 'zh-TW' ? convertToTraditionalChinese(simplifiedText) : simplifiedText;
 const currentView = ref('project');
 const calendarMonth = ref((() => { try { const tz = settings.value?.timezone || 'UTC'; const s = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); return s.substring(0, 7); } catch (e) { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); } })());
 // el-calendar 日历视图状态
@@ -364,7 +382,7 @@ const spendingMode = ref('op');
 const showProjected = ref(true);
 const selectedYear = ref('recent'); // 'recent' = last 12 months, or year number like 2024
 const selectedMonth = ref(null); // selected month key like '2026-01' for detail view
-const locale = ref(ZhCn), tableKey = ref(0), termRef = ref(null), submitting = ref(false);
+const locale = ref(ZhTw), tableKey = ref(0), termRef = ref(null), submitting = ref(false);
 // 兼容工具：将旧数据单字符串转为数组，空值保护
 const normalizeNotifyTime = (val) => {
     if (Array.isArray(val)) return val.length > 0 ? val : ['08:00'];
@@ -442,8 +460,8 @@ const generateUUID = () => {
     });
 };
 
-const getDefaultCalendarSubscriptionName = () => lang.value === 'zh' ? '全部提醒' : 'All Reminders';
-const getNewCalendarSubscriptionName = (index = 1) => lang.value === 'zh' ? `新订阅 ${index}` : `Subscription ${index}`;
+const getDefaultCalendarSubscriptionName = () => languageText('全部提醒', 'All Reminders');
+const getNewCalendarSubscriptionName = (index = 1) => languageText(`新订阅 ${index}`, `Subscription ${index}`);
 
 const normalizeCalendarSettings = (rawSettings = {}) => {
     const sourceSubs = Array.isArray(rawSettings.calendarSubscriptions) ? rawSettings.calendarSubscriptions : [];
@@ -530,11 +548,11 @@ const prepareCalendarSettingsForSave = () => {
     for (const sub of normalized.calendarSubscriptions) {
         const trimmedName = (sub.name || '').trim();
         if (!trimmedName) {
-            throw new Error(lang.value === 'zh' ? '订阅名称不能为空' : 'Subscription name is required');
+            throw new Error(languageText('订阅名称不能为空', 'Subscription name is required'));
         }
         const nameKey = trimmedName.toLowerCase();
         if (seenNames.has(nameKey)) {
-            throw new Error(lang.value === 'zh' ? '订阅名称不能重复' : 'Subscription names must be unique');
+            throw new Error(languageText('订阅名称不能重复', 'Subscription names must be unique'));
         }
         seenNames.add(nameKey);
         sub.name = trimmedName;
@@ -555,11 +573,11 @@ const prepareCalendarSettingsForPersist = (overrides = {}) => {
     for (const sub of normalized.calendarSubscriptions) {
         const trimmedName = (sub.name || '').trim();
         if (!trimmedName) {
-            throw new Error(lang.value === 'zh' ? '订阅名称不能为空' : 'Subscription name is required');
+            throw new Error(languageText('订阅名称不能为空', 'Subscription name is required'));
         }
         const nameKey = trimmedName.toLowerCase();
         if (seenNames.has(nameKey)) {
-            throw new Error(lang.value === 'zh' ? '订阅名称不能重复' : 'Subscription names must be unique');
+            throw new Error(languageText('订阅名称不能重复', 'Subscription names must be unique'));
         }
         seenNames.add(nameKey);
         sub.name = trimmedName;
@@ -595,7 +613,7 @@ const persistCalendarSettingsOnly = async (overrides = {}) => {
 
         if (res.status === 409) {
             await ElMessageBox.alert(
-                lang.value === 'zh' ? '数据版本冲突！后台系统（或自动续期）已修改了数据。请刷新页面后重试。' : 'Data Conflict! Data has been modified by system or another session. Please refresh.',
+                languageText('数据版本冲突！后台系统（或自动续期）已修改了数据。请刷新页面后重试。', 'Data Conflict! Data has been modified by system or another session. Please refresh.'),
                 'Sync Error',
                 { confirmButtonText: 'OK', type: 'error' }
             );
@@ -621,7 +639,7 @@ const persistCalendarSettingsOnly = async (overrides = {}) => {
 };
 
 const calendarSubscriptionOptions = computed(() => {
-    const localeName = lang.value === 'zh' ? 'zh' : 'en';
+    const localeName = lang.value === 'en' ? 'en' : lang.value === 'zh-TW' ? 'zh-TW' : 'zh';
     return [...list.value]
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), localeName))
         .map(item => ({
@@ -635,15 +653,15 @@ const getCalendarSubscriptionUrl = (sub) => {
     const origin = window.location.origin;
     return sub && sub.token
         ? `${origin}/api/calendar.ics?token=${sub.token}`
-        : (lang.value === 'zh' ? '保存设置后生成订阅地址...' : 'Save settings to generate URL...');
+        : (languageText('保存设置后生成订阅地址...', 'Save settings to generate URL...'));
 };
 
 const getCalendarSubscriptionSummary = (sub) => {
     const count = Array.isArray(sub?.itemIds) ? sub.itemIds.length : 0;
     if (count === 0) {
-        return lang.value === 'zh' ? '留空表示包含全部事项' : 'Leave empty to include all items';
+        return languageText('留空表示包含全部事项', 'Leave empty to include all items');
     }
-    return lang.value === 'zh' ? `已选 ${count} 项事项` : `${count} item(s) selected`;
+    return languageText(`已选 ${count} 项事项`, `${count} item(s) selected`);
 };
 
 const addCalendarSubscription = () => {
@@ -664,7 +682,7 @@ const copyCalendarSubscriptionUrl = async (sub) => {
         await navigator.clipboard.writeText(getCalendarSubscriptionUrl(sub));
         ElMessage.success(t('msg.copyOk'));
     } catch {
-        ElMessage.error(lang.value === 'zh' ? '复制失败' : 'Copy failed');
+        ElMessage.error(languageText('复制失败', 'Copy failed'));
     }
 };
 
@@ -672,9 +690,7 @@ const resetCalendarSubscriptionToken = async (sub) => {
     const subName = sub?.name || getDefaultCalendarSubscriptionName();
     try {
         await ElMessageBox.confirm(
-            lang.value === 'zh'
-                ? `重置订阅「${subName}」后，现有日历链接将立即失效，是否继续？`
-                : `Resetting "${subName}" invalidates its current calendar URL. Continue?`,
+            languageText(`重置订阅「${subName}」后，现有日历链接将立即失效，是否继续？`, `Resetting "${subName}" invalidates its current calendar URL. Continue?`),
             'Warning',
             { type: 'warning', confirmButtonText: t('yes'), cancelButtonText: t('no') }
         );
@@ -693,13 +709,11 @@ const resetCalendarSubscriptionToken = async (sub) => {
 
 const removeCalendarSubscription = async (sub) => {
     if (sub.isDefault) {
-        return ElMessage.warning(lang.value === 'zh' ? '默认订阅不能删除' : 'Default subscription cannot be deleted');
+        return ElMessage.warning(languageText('默认订阅不能删除', 'Default subscription cannot be deleted'));
     }
     try {
         await ElMessageBox.confirm(
-            lang.value === 'zh'
-                ? `删除订阅「${sub.name}」后，其链接将永久失效，是否继续？`
-                : `Delete subscription "${sub.name}" and invalidate its URL?`,
+            languageText(`删除订阅「${sub.name}」后，其链接将永久失效，是否继续？`, `Delete subscription "${sub.name}" and invalidate its URL?`),
             'Warning',
             { type: 'warning', confirmButtonText: t('yes'), cancelButtonText: t('no') }
         );
@@ -708,7 +722,7 @@ const removeCalendarSubscription = async (sub) => {
             calendarSubscriptions: nextSubscriptions
         });
         if (saved) {
-            ElMessage.success(lang.value === 'zh' ? '订阅已删除' : 'Subscription deleted');
+            ElMessage.success(languageText('订阅已删除', 'Subscription deleted'));
         }
     } catch { }
 };
@@ -721,7 +735,7 @@ const saveChannel = () => {
     const existing = settingsForm.value.channels || [];
     const isDuplicate = existing.some(c => c.name === channelForm.value.name && c.id !== channelForm.value.id);
     if (isDuplicate) {
-        return ElMessage.error(lang.value === 'zh' ? '渠道名称已存在' : 'Channel name already exists');
+        return ElMessage.error(languageText('渠道名称已存在', 'Channel name already exists'));
     }
 
     const newCh = JSON.parse(JSON.stringify(channelForm.value));
@@ -844,6 +858,7 @@ const lastRenewFilters = computed(() => [
     { text: t('filter.year'), value: 'year' },
     { text: t('filter.earlier'), value: 'earlier' }
 ]);
+messages['zh-TW'] = convertLocaleMessages(messages.zh);
 const t = (k) => { let v = messages[lang.value]; k.split('.').forEach(p => v = v ? v[p] : k); return v || k; };
 
 const calculateTotal = (items) => {
@@ -1393,24 +1408,24 @@ onMounted(() => {
                 if (billInfo.length > 0 || channelCount > 0) {
                     let msg = '';
                     if (billInfo.length > 0 && channelCount > 0) {
-                        msg = lang.value === 'zh' ? `检测到 ${billInfo.length} 个项目缺少账单，${channelCount} 个通知渠道待迁移。` : `Found ${billInfo.length} items lacking bills and ${channelCount} legacy channels.`;
+                        msg = languageText(`检测到 ${billInfo.length} 个项目缺少账单，${channelCount} 个通知渠道待迁移。`, `Found ${billInfo.length} items lacking bills and ${channelCount} legacy channels.`);
                     } else if (billInfo.length > 0) {
-                        msg = lang.value === 'zh' ? `检测到 ${billInfo.length} 个项目缺少历史账单。` : `Found ${billInfo.length} items without history.`;
+                        msg = languageText(`检测到 ${billInfo.length} 个项目缺少历史账单。`, `Found ${billInfo.length} items without history.`);
                     } else {
-                        msg = lang.value === 'zh' ? `检测到 ${channelCount} 个旧版通知渠道待迁移。` : `Found ${channelCount} legacy channels to migrate.`;
+                        msg = languageText(`检测到 ${channelCount} 个旧版通知渠道待迁移。`, `Found ${channelCount} legacy channels to migrate.`);
                     }
 
                     ElMessageBox.confirm(
-                        msg + (lang.value === 'zh' ? ' 建议先备份数据再执行迁移，是否继续？(今日仅提示一次)' : ' Recommend backup first. Continue? (Ask once today)'),
-                        lang.value === 'zh' ? '数据优化建议' : 'Optimization Suggestion',
-                        { confirmButtonText: lang.value === 'zh' ? '备份并迁移' : 'Backup & Migrate', cancelButtonText: t('cancel'), type: 'info' }
+                        msg + (languageText(' 建议先备份数据再执行迁移，是否继续？(今日仅提示一次)', ' Recommend backup first. Continue? (Ask once today)')),
+                        languageText('数据优化建议', 'Optimization Suggestion'),
+                        { confirmButtonText: languageText('备份并迁移', 'Backup & Migrate'), cancelButtonText: t('cancel'), type: 'info' }
                     ).then(async () => {
                         await exportData();
                         setTimeout(() => {
                             ElMessageBox.confirm(
-                                lang.value === 'zh' ? '备份文件是否已保存？确认后将开始迁移。' : 'Is the backup saved? Migration will start upon confirmation.',
-                                lang.value === 'zh' ? '最后确认' : 'Final Confirmation',
-                                { confirmButtonText: lang.value === 'zh' ? '确认迁移' : 'Start Migration', cancelButtonText: t('cancel'), type: 'warning' }
+                                languageText('备份文件是否已保存？确认后将开始迁移。', 'Is the backup saved? Migration will start upon confirmation.'),
+                                languageText('最后确认', 'Final Confirmation'),
+                                { confirmButtonText: languageText('确认迁移', 'Start Migration'), cancelButtonText: t('cancel'), type: 'warning' }
                             ).then(() => {
                                 migrateOldData(true);
                             }).catch(() => { });
@@ -1434,8 +1449,19 @@ onUnmounted(() => {
     window.removeEventListener('resize', updateWidth);
 });
 
-const setLang = (l) => { lang.value = l; localStorage.setItem('lang', l); locale.value = (l === 'zh' ? ZhCn : null); };
-const toggleLang = async () => { setLang(lang.value === 'zh' ? 'en' : 'zh'); settings.value.language = lang.value; await saveData(null, settings.value); };
+const setLang = (language) => {
+    const supportedLanguage = ['zh', 'zh-TW', 'en'].includes(language) ? language : 'zh';
+    lang.value = supportedLanguage;
+    localStorage.setItem('lang', supportedLanguage);
+    locale.value = supportedLanguage === 'zh' ? ZhCn : supportedLanguage === 'zh-TW' ? ZhTw : ElementPlusLocaleEn;
+    document.documentElement.lang = supportedLanguage === 'zh-TW' ? 'zh-Hant-TW' : supportedLanguage === 'zh' ? 'zh-CN' : 'en';
+};
+const toggleLang = async () => {
+    const nextLanguage = { zh: 'zh-TW', 'zh-TW': 'en', en: 'zh' }[lang.value] || 'zh';
+    setLang(nextLanguage);
+    settings.value.language = lang.value;
+    await saveData(null, settings.value);
+};
 const login = async () => {
     if (!password.value) return ElMessage.warning(t('msg.passReq')); loading.value = true;
     try {
@@ -1493,7 +1519,7 @@ const saveData = async (items, set, msg = true) => {
         if (res.status === 409) {
             // 弹出对话框，强制用户刷新
             await ElMessageBox.alert(
-                lang.value === 'zh' ? '数据版本冲突！后台系统（或自动续期）已修改了数据。请刷新页面后重试。' : 'Data Conflict! Data has been modified by system or another session. Please refresh.',
+                languageText('数据版本冲突！后台系统（或自动续期）已修改了数据。请刷新页面后重试。', 'Data Conflict! Data has been modified by system or another session. Please refresh.'),
                 'Sync Error',
                 { confirmButtonText: 'OK', type: 'error' }
             );
@@ -1567,7 +1593,7 @@ const saveItem = async () => {
             endDate: endDate,
             price: form.value.fixedPrice || 0,
             currency: form.value.currency || settings.value.defaultCurrency || 'CNY',
-            note: lang.value === 'zh' ? '自动初始账单' : 'Auto Initial'
+            note: languageText('自动初始账单', 'Auto Initial')
         }];
     }
 
@@ -1643,7 +1669,7 @@ const inverseListSelection = () => {
 const batchDeleteItems = () => {
     if (selectedListItems.value.length === 0) return;
     ElMessageBox.confirm(
-        lang.value === 'zh' ? `确定要删除选中的 ${selectedListItems.value.length} 个服务吗？` : `Delete selected ${selectedListItems.value.length} services?`,
+        languageText(`确定要删除选中的 ${selectedListItems.value.length} 个服务吗？`, `Delete selected ${selectedListItems.value.length} services?`),
         t('tipDelete'),
         { confirmButtonText: t('yes'), cancelButtonText: t('no'), type: 'danger' }
     ).then(async () => {
@@ -1766,7 +1792,7 @@ const formatLogTime = (isoStr) => {
 // 可复用的 repeat 规则描述生成函数
 const getRepeatDesc = (r) => {
     if (!r || !r.freq) return '';
-    const isZh = lang.value === 'zh';
+    const isZh = lang.value !== 'en';
     
     // 翻译字典
     const dict = {
@@ -1846,7 +1872,7 @@ const getRepeatDesc = (r) => {
         }
     }
 
-    return finalStr;
+    return languageText(finalStr, finalStr);
 };
 
 // 编辑弹窗中的 repeat 规则描述 (绑定 form)
@@ -1920,11 +1946,11 @@ const generateBackupKey = () => {
 };
 const copyBackupKey = async () => {
     const key = settingsForm.value.backupKey;
-    if (!key) return ElMessage.warning(lang.value === 'zh' ? '密钥为空，请先生成或输入' : 'Key is empty');
+    if (!key) return ElMessage.warning(languageText('密钥为空，请先生成或输入', 'Key is empty'));
     try {
         await navigator.clipboard.writeText(key);
-        ElMessage.success(lang.value === 'zh' ? '已复制到剪贴板' : 'Copied to clipboard');
-    } catch { ElMessage.error(lang.value === 'zh' ? '复制失败' : 'Copy failed'); }
+        ElMessage.success(languageText('已复制到剪贴板', 'Copied to clipboard'));
+    } catch { ElMessage.error(languageText('复制失败', 'Copy failed')); }
 };
 const saveSettings = async (close = true) => {
     let preparedSettings;
@@ -1937,10 +1963,10 @@ const saveSettings = async (close = true) => {
     const bk = preparedSettings.backupKey;
     if (bk && bk.trim()) {
         if (bk.length < 8) {
-            return ElMessage.error(lang.value === 'zh' ? '备份密钥长度至少8位' : 'Backup Key must be at least 8 chars');
+            return ElMessage.error(languageText('备份密钥长度至少8位', 'Backup Key must be at least 8 chars'));
         }
         if (!/^(?=.*[a-zA-Z])(?=.*\d).+$/.test(bk)) {
-            return ElMessage.error(lang.value === 'zh' ? '备份密钥需包含字母和数字' : 'Backup Key must contain letters and numbers');
+            return ElMessage.error(languageText('备份密钥需包含字母和数字', 'Backup Key must contain letters and numbers'));
         }
     }
     const oldCurrency = settings.value.defaultCurrency;
@@ -1998,30 +2024,28 @@ const migrateOldData = async (skipConfirm = false) => {
 
         // 2. 没有数据时提示并返回
         if (billCount === 0 && channelCount === 0) {
-            ElMessage.info(lang.value === 'zh' ? '没有需要迁移的数据' : 'No data to migrate');
+            ElMessage.info(languageText('没有需要迁移的数据', 'No data to migrate'));
             return;
         }
 
         // 3. 显示确认对话框（在try块内，用户取消时会被catch捕获）
         if (skipConfirm !== true) {
-            let msg = lang.value === 'zh'
-                ? '此操作将进行以下迁移：'
-                : 'This will perform the following migrations:';
+            let msg = languageText('此操作将进行以下迁移：', 'This will perform the following migrations:');
             if (billCount > 0) {
-                msg += lang.value === 'zh'
+                msg += lang.value !== 'en'
                     ? ' 为 ' + billCount + ' 个项目生成初始账单；'
                     : ' Generate initial bills for ' + billCount + ' items;';
             }
             if (channelCount > 0) {
-                msg += lang.value === 'zh'
+                msg += lang.value !== 'en'
                     ? ' 迁移 ' + channelCount + ' 个旧版通知渠道。'
                     : ' Migrate ' + channelCount + ' legacy channels.';
             }
-            msg += lang.value === 'zh' ? ' 是否继续？' : ' Continue?';
+            msg += languageText(' 是否继续？', ' Continue?');
 
             await ElMessageBox.confirm(
                 msg,
-                lang.value === 'zh' ? '确认数据迁移' : 'Confirm Migration',
+                languageText('确认数据迁移', 'Confirm Migration'),
                 { type: 'warning', confirmButtonText: t('yes'), cancelButtonText: t('no') }
             );
         }
@@ -2058,7 +2082,7 @@ const migrateOldData = async (skipConfirm = false) => {
                 endDate: endDate,
                 price: item.fixedPrice || 0,
                 currency: item.currency || settings.value.defaultCurrency || 'CNY',
-                note: lang.value === 'zh' ? '自动初始账单' : 'Auto Initial'
+                note: languageText('自动初始账单', 'Auto Initial')
             }];
         });
 
@@ -2085,13 +2109,13 @@ const migrateOldData = async (skipConfirm = false) => {
         tableKey.value++;
 
         const details = [];
-        if (billCount > 0) details.push(lang.value === 'zh' ? `- 生成 ${billCount} 个初始账单` : `- Generated ${billCount} initial bills`);
-        if (channelCount > 0) details.push(lang.value === 'zh' ? `- 迁移 ${channelCount} 个通知渠道: ${migratedNames.join(', ')}` : `- Migrated ${channelCount} channels: ${migratedNames.join(', ')}`);
-        if (channelCount > 0) details.push(lang.value === 'zh' ? `- 已清理旧版通知配置` : `- Cleaned up legacy config`);
+        if (billCount > 0) details.push(languageText(`- 生成 ${billCount} 个初始账单`, `- Generated ${billCount} initial bills`));
+        if (channelCount > 0) details.push(languageText(`- 迁移 ${channelCount} 个通知渠道: ${migratedNames.join(', ')}`, `- Migrated ${channelCount} channels: ${migratedNames.join(', ')}`));
+        if (channelCount > 0) details.push(languageText(`- 已清理旧版通知配置`, `- Cleaned up legacy config`));
 
         ElMessageBox.alert(
             details.join('<br>'),
-            lang.value === 'zh' ? '迁移报告' : 'Migration Report',
+            languageText('迁移报告', 'Migration Report'),
             { dangerouslyUseHTMLString: true, type: 'success' }
         );
     } catch { }
@@ -2101,28 +2125,28 @@ const clearLogs = async () => { await fetch('/api/logs/clear', { method: 'POST',
 const openHistoryLogs = async () => { historyVisible.value = true; historyLoading.value = true; try { historyLogs.value = (await (await fetch('/api/logs', { headers: getAuth() })).json()).data; } finally { historyLoading.value = false; } };
 
 const getDaysClass = (d) => d <= 0 ? 'text-red-500 font-black' : (d <= 7 ? 'text-amber-500 font-bold' : 'text-blue-600 font-bold');
-const formatDaysLeft = (d) => d === 0 ? (lang.value === 'zh' ? '今天' : 'TODAY') : (d < 0 ? (lang.value === 'zh' ? '过期 ' : 'OVERDUE ') + Math.abs(d) + (lang.value === 'zh' ? ' 天' : 'DAYS') : d + (lang.value === 'zh' ? ' 天' : ' DAYS'));
+const formatDaysLeft = (d) => d === 0 ? (languageText('今天', 'TODAY')) : (d < 0 ? (languageText('过期 ', 'OVERDUE ')) + Math.abs(d) + (languageText(' 天', 'DAYS')) : d + (languageText(' 天', ' DAYS')));
 const getTagClass = (t) => ({ alert: 'border-red-200 text-red-600 bg-red-50', renew: 'border-amber-200 text-amber-600 bg-amber-50', disable: 'border-gray-200 text-gray-500 bg-gray-50', normal: 'border-blue-200 text-blue-600 bg-blue-50' }[t] || 'border-blue-200 text-blue-600 bg-blue-50');
 const getLogColor = (a) => (a && a.includes('alert') ? 'danger' : (a && a.includes('renew') ? 'warning' : (a && a.includes('disable') ? 'info' : 'success')));
 const tableRowClassName = ({ row }) => row.enabled === false ? 'disabled-row' : '';
 
-const getLunarStr = (s) => { const d = parseYMD(s); const l = LUNAR.solar2lunar(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()); return l ? ('农历: ' + l.fullStr) : ''; };
+const getLunarStr = (s) => { const d = parseYMD(s); const l = LUNAR.solar2lunar(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()); return l ? languageText('农历: ' + l.fullStr, '农历: ' + l.fullStr) : ''; };
 
 
 
 const getLunarTooltip = (c) => {
     if (!c || !c.date) return '';
     const l = LUNAR.solar2lunar(c.date.getFullYear(), c.date.getMonth() + 1, c.date.getDate());
-    return l ? l.fullStr : '';
+    return l ? languageText(l.fullStr, l.fullStr) : '';
 };
 
 const getSmartLunarText = (c) => {
     if (!c || !c.date) return '';
     const l = LUNAR.solar2lunar(c.date.getFullYear(), c.date.getMonth() + 1, c.date.getDate());
-    return l ? (l.day === 1 ? l.monthStr : l.dayStr) : '';
+    return l ? languageText(l.day === 1 ? l.monthStr : l.dayStr, l.day === 1 ? l.monthStr : l.dayStr) : '';
 };
 const getYearGanZhi = (t) => { const y = parseInt(t); if (isNaN(y)) return ''; const g = (y - 4) % 10, z = (y - 4) % 12; return '甲乙丙丁戊己庚辛壬癸'.split('')[g < 0 ? g + 10 : g] + '子丑寅卯辰巳午未申酉戌亥'.split('')[z < 0 ? z + 12 : z] + '年'; };
-const getMonthStr = (t) => { const m = Number(t); return lang.value === 'zh' ? (m + 1) + '月' : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m]; };
+const getMonthStr = (t) => { const m = Number(t); return lang.value !== 'en' ? (m + 1) + '月' : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m]; };
 const getTagCount = (t) => list.value.filter(i => (i.tags || []).includes(t)).length;
 
 const manualRenew = async (row) => {
@@ -2387,8 +2411,8 @@ const submitRenew = async () => {
             if (expectedEnd && expectedEnd !== rf.endDate) {
                 try {
                     await ElMessageBox.confirm(
-                        lang.value === 'zh' ? '当前结束日期与周期设置不符，是否确认保存？' : 'End date does not match the cycle settings. Save anyway?',
-                        lang.value === 'zh' ? '周期不匹配' : 'Cycle Mismatch',
+                        languageText('当前结束日期与周期设置不符，是否确认保存？', 'End date does not match the cycle settings. Save anyway?'),
+                        languageText('周期不匹配', 'Cycle Mismatch'),
                         { confirmButtonText: t('yes'), cancelButtonText: t('cancel'), type: 'warning' }
                     );
                 } catch (e) {
@@ -2409,7 +2433,7 @@ const submitRenew = async () => {
                 renewDialogVisible.value = true;
                 submitting.value = false;
                 const existRecord = overlapResult.record;
-                ElMessage.warning(lang.value === 'zh'
+                ElMessage.warning(lang.value !== 'en'
                     ? '账单周期与已有记录重叠 (' + existRecord.startDate + ' ~ ' + existRecord.endDate + ')，请修改已有记录而非添加新记录'
                     : 'Period overlaps with existing record (' + existRecord.startDate + ' ~ ' + existRecord.endDate + '). Please edit the existing record instead.'
                 );
@@ -2571,7 +2595,7 @@ const submitAddHistory = async () => {
 
     // Validate required fields
     if (!form.renewDate || !form.startDate || !form.endDate) {
-        ElMessage.error(lang.value === 'zh' ? '请填写完整的日期信息' : 'Please fill in all date fields');
+        ElMessage.error(languageText('请填写完整的日期信息', 'Please fill in all date fields'));
         return;
     }
 
@@ -2579,7 +2603,7 @@ const submitAddHistory = async () => {
     const overlapResult = checkPeriodOverlap(form.startDate, form.endDate);
     if (overlapResult.overlap) {
         const existRecord = overlapResult.record;
-        ElMessage.warning(lang.value === 'zh'
+        ElMessage.warning(lang.value !== 'en'
             ? '账单周期与已有记录重叠 (' + existRecord.startDate + ' ~ ' + existRecord.endDate + ')，请修改已有记录而非添加新记录'
             : 'Period overlaps with existing record (' + existRecord.startDate + ' ~ ' + existRecord.endDate + '). Please edit the existing record instead.'
         );
@@ -2708,7 +2732,7 @@ const previewData = computed(() => {
         // 计算毫秒差 -> 天数
         const diff = Math.round((nextDateUTC - todayUTC) / (1000 * 3600 * 24));
 
-        const diffStr = (lang.value === 'zh' ? '距今 ' : 'Due in ') + (diff > 0 ? '+' : '') + diff + ' ' + (lang.value === 'zh' ? '天' : 'Days');
+        const diffStr = (languageText('距今 ', 'Due in ')) + (diff > 0 ? '+' : '') + diff + ' ' + (languageText('天', 'Days'));
 
         return { date: nextStr, diff: diffStr };
     } catch (e) {
@@ -2808,7 +2832,7 @@ const exportData = async () => {
 const triggerImport = () => importRef.value.click();
 const handleImportFile = async (event) => {
     const file = event.target.files[0]; if (!file) return;
-    try { await ElMessageBox.confirm(lang.value === 'zh' ? '此操作将覆盖当前的订阅列表，是否继续？' : 'Overwrite current subscriptions?', t('btnImport'), { confirmButtonText: t('yes'), cancelButtonText: t('no'), type: 'warning' }); } catch { event.target.value = ''; return; }
+    try { await ElMessageBox.confirm(languageText('此操作将覆盖当前的订阅列表，是否继续？', 'Overwrite current subscriptions?'), t('btnImport'), { confirmButtonText: t('yes'), cancelButtonText: t('no'), type: 'warning' }); } catch { event.target.value = ''; return; }
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
@@ -2845,12 +2869,12 @@ const getChannelName = (type) => {
         notifyx: 'NotifyX',
         gotify: 'Gotify',
         ntfy: 'Ntfy',
-        resend: lang.value === 'zh' ? 'Resend(邮件)' : 'Resend(Email)',
-        webhook: lang.value === 'zh' ? 'Webhook' : 'Webhook',
-        serverchan3: lang.value === 'zh' ? 'Server酱·3' : 'ServerChan3',
-        dingtalk: lang.value === 'zh' ? '钉钉机器人' : 'DingTalk Robot',
-        lark: lang.value === 'zh' ? '飞书机器人' : 'Lark Robot',
-        wecom: lang.value === 'zh' ? '企微机器人' : 'WeCom Robot'
+        resend: languageText('Resend(邮件)', 'Resend(Email)'),
+        webhook: lang.value !== 'en' ? 'Webhook' : 'Webhook',
+        serverchan3: languageText('Server酱·3', 'ServerChan3'),
+        dingtalk: languageText('钉钉机器人', 'DingTalk Robot'),
+        lark: languageText('飞书机器人', 'Lark Robot'),
+        wecom: languageText('企微机器人', 'WeCom Robot')
     };
     return map[type] || type;
 };
@@ -2898,7 +2922,7 @@ const batchUpdateChannels = async (action) => {
         try {
             await ElMessageBox.confirm(
                 t('msg.confirmDel'),
-                lang.value === 'zh' ? '批量删除' : 'Batch Delete',
+                languageText('批量删除', 'Batch Delete'),
                 { confirmButtonText: t('yes'), cancelButtonText: t('no'), type: 'warning' }
             );
         } catch { return; }
@@ -2914,7 +2938,7 @@ const batchUpdateChannels = async (action) => {
     
     // Do NOT auto-save. Wait for user to click "Save Settings".
     // await saveSettings(); 
-    //ElMessage.success(lang.value === 'zh' ? '批量操作已应用，请点击保存设置生效' : 'Batch operation applied. Click Save Settings to persist.');
+    //ElMessage.success(languageText('批量操作已应用，请点击保存设置生效', 'Batch operation applied. Click Save Settings to persist.'));
 };
 
 const openAssignDialog = () => {
@@ -2924,7 +2948,7 @@ const openAssignDialog = () => {
 };
 
 const submitAssign = async () => {
-    if (assignForm.value.serviceIds.length === 0) return ElMessage.warning(lang.value === 'zh' ? '请选择至少一个服务' : 'Select at least one service');
+    if (assignForm.value.serviceIds.length === 0) return ElMessage.warning(languageText('请选择至少一个服务', 'Select at least one service'));
     
     const targetServiceIds = new Set(assignForm.value.serviceIds);
     const channelIds = selectedChannelIds.value;
@@ -3072,7 +3096,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             @click="openHistoryLogs">{{
                                 t('logs') }}</el-button>
                         <el-button class="mecha-btn !bg-cyan-700 !text-white font-mono" @click="toggleLang">{{
-                            lang === 'zh' ? 'EN' : 'ZH'
+                            lang === 'zh' ? '繁體' : lang === 'zh-TW' ? 'EN' : '简体'
                         }}</el-button>
                         <el-button class="mecha-btn !bg-slate-600 !text-white" circle :icon="isDark ? Sunny : Moon"
                             @click="toggleTheme"></el-button>
@@ -3095,7 +3119,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                 v-if="list.length > 0">
                                 ≈ {{ totalAmount }} {{ settings.defaultCurrency || 'CNY' }}
                                 <el-tooltip v-if="usingFallbackRates !== undefined"
-                                    :content="usingFallbackRates ? (lang === 'zh' ? '默认汇率' : 'Fallback Rate') : (lang === 'zh' ? '实时汇率' : 'Realtime Rate')"
+                                    :content="usingFallbackRates ? (languageText('默认汇率', 'Fallback Rate')) : (languageText('实时汇率', 'Realtime Rate'))"
                                     placement="top" :hide-after="0" :enterable="false">
                                     <div class="flex items-center">
                                         <el-icon :style="{ color: usingFallbackRates ? '#f59e0b' : '#10b981' }"
@@ -3216,24 +3240,24 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                 <span class="text-sm font-bold text-blue-600 mr-2 flex items-center">
                                     <el-icon class="mr-1"><Checked /></el-icon>
-                                    {{ lang === 'zh' ? `已选择 ${selectedListItems.length} 项:` : `Selected ${selectedListItems.length}:` }}
+                                    {{ languageText(`已选择 ${selectedListItems.length} 项:`, `Selected ${selectedListItems.length}:`) }}
                                 </span>
                                 <el-button size="small" type="info" plain @click="inverseListSelection">
-                                    {{ lang === 'zh' ? '反选' : 'Inverse' }}
+                                    {{ languageText('反选', 'Inverse') }}
                                 </el-button>                               
                                 <el-button size="small" type="success" plain @click="batchToggleEnable(true)" :loading="submitting">
-                                    {{ lang === 'zh' ? '批量启用' : 'Enable' }}
+                                    {{ languageText('批量启用', 'Enable') }}
                                 </el-button>
                                 <el-button size="small" type="warning" plain @click="batchToggleEnable(false)" :loading="submitting">
-                                    {{ lang === 'zh' ? '批量暂停' : 'Disable' }}
+                                    {{ languageText('批量暂停', 'Disable') }}
                                 </el-button>
                                 <el-button size="small" type="primary" plain @click="openListBatchAssign">
-                                    {{ lang === 'zh' ? '分配渠道' : 'Assign Channels' }}
+                                    {{ languageText('分配渠道', 'Assign Channels') }}
                                 </el-button>
                             </div>
                             <div>
                                 <el-button size="small" type="danger" @click="batchDeleteItems" :loading="submitting">
-                                    {{ lang === 'zh' ? '批量删除' : 'Delete All' }}
+                                    {{ languageText('批量删除', 'Delete All') }}
                                 </el-button>
                             </div>
                         </div>
@@ -3498,7 +3522,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                                 <span
                                                     class="text-xs text-amber-600 dark:text-amber-500 font-mono font-bold">{{
                                                         bill.days === 0 ?
-                                                            (lang === 'zh' ? '今天' : 'TODAY') : bill.days + (lang === 'zh' ? ' 天剩余' : ' DAYS LEFT') }}</span>
+                                                            (languageText('今天', 'TODAY')) : bill.days + (languageText(' 天剩余', ' DAYS LEFT')) }}</span>
                                             </div>
                                             <div class="text-right shrink-0">
                                                 <div
@@ -3878,26 +3902,26 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                     <div class="flex items-center gap-2">
                                         <el-select v-model="calendarSelectedYear" size="small" class="!w-24"
                                             :teleported="false">
-                                            <el-option v-for="y in calendarYearRange" :key="y" :label="y + (lang === 'zh' ? '年' : '')" :value="y" />
+                                            <el-option v-for="y in calendarYearRange" :key="y" :label="y + (languageText('年', ''))" :value="y" />
                                         </el-select>
                                         <el-select v-model="calendarSelectedMonth" size="small" class="!w-28"
                                             :teleported="false">
                                             <el-option v-for="m in 12" :key="m"
-                                                :label="lang === 'zh' ? m + '月' : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]"
+                                                :label="lang !== 'en' ? m + '月' : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]"
                                                 :value="m" />
                                         </el-select>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <div class="flex items-center gap-2 mr-1">
-                                            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">{{ lang === 'zh' ? '开启预测账单' : 'Show Predictions' }}</span>
+                                            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">{{ languageText('开启预测账单', 'Show Predictions') }}</span>
                                             <el-switch v-model="showProjected" size="small" />
                                         </div>
                                         <el-button-group>
-                                            <el-button size="small" @click="calendarRef?.selectDate('prev-year')" class="!font-mono !text-xs">{{ lang === 'zh' ? '上一年' : 'Prev Year' }}</el-button>
-                                            <el-button size="small" @click="calendarRef?.selectDate('prev-month')" class="!font-mono !text-xs">{{ lang === 'zh' ? '上个月' : 'Prev Month' }}</el-button>
+                                            <el-button size="small" @click="calendarRef?.selectDate('prev-year')" class="!font-mono !text-xs">{{ languageText('上一年', 'Prev Year') }}</el-button>
+                                            <el-button size="small" @click="calendarRef?.selectDate('prev-month')" class="!font-mono !text-xs">{{ languageText('上个月', 'Prev Month') }}</el-button>
                                             <el-button size="small" @click="goCalendarToday" class="!font-mono !font-bold">{{ t('calToday') }}</el-button>
-                                            <el-button size="small" @click="calendarRef?.selectDate('next-month')" class="!font-mono !text-xs">{{ lang === 'zh' ? '下个月' : 'Next Month' }}</el-button>
-                                            <el-button size="small" @click="calendarRef?.selectDate('next-year')" class="!font-mono !text-xs">{{ lang === 'zh' ? '下一年' : 'Next Year' }}</el-button>
+                                            <el-button size="small" @click="calendarRef?.selectDate('next-month')" class="!font-mono !text-xs">{{ languageText('下个月', 'Next Month') }}</el-button>
+                                            <el-button size="small" @click="calendarRef?.selectDate('next-year')" class="!font-mono !text-xs">{{ languageText('下一年', 'Next Year') }}</el-button>
                                         </el-button-group>
                                     </div>
                                 </div>
@@ -3923,7 +3947,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                                     ]"><span class="cal-bar-name">{{ ev.name }}</span><span v-if="ev.isProjected" class="cal-bar-predict-dot"></span></div>
                                                 </template>
                                                 <div v-if="getCalendarDayEvents(data.date).length > 2" class="cal-event-bar bar-more">
-                                                    +{{ getCalendarDayEvents(data.date).length - 2 }} {{ lang === 'zh' ? '项' : 'more' }}
+                                                    +{{ getCalendarDayEvents(data.date).length - 2 }} {{ languageText('项', 'more') }}
                                                 </div>
                                             </div>
                                         </div>
@@ -3936,7 +3960,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                                 <span class="ml-1 text-slate-400 font-normal">{{ getLunarTooltip({ date: data.date }) }}</span>
                                             </div>
                                             <div class="flex items-center gap-3 text-[10px] font-mono mt-1">
-                                                <span class="text-slate-500">{{ getCalendarDayEvents(data.date).length }} {{ lang === 'zh' ? '个项目' : 'items' }}</span>
+                                                <span class="text-slate-500">{{ getCalendarDayEvents(data.date).length }} {{ languageText('个项目', 'items') }}</span>
                                                 <span class="font-bold text-slate-700 dark:text-slate-200">≈ {{ getCalendarDayEvents(data.date).reduce((s, e) => s + (e.convertedPrice || 0), 0).toFixed(2) }} {{ settings.defaultCurrency || 'CNY' }}</span>
                                             </div>
                                         </div>
@@ -3946,7 +3970,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                                 ev.type === 'repeat' ? 'bg-purple-500' : ev.type === 'reset' ? 'bg-orange-500' : 'bg-blue-500'
                                             ]"></span>
                                             <span class="break-all text-slate-700 dark:text-slate-200">{{ ev.name }}</span>
-                                            <span v-if="ev.isProjected" class="text-[9px] px-1 rounded bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 whitespace-nowrap">{{ lang === 'zh' ? '预' : 'PRE' }}</span>
+                                            <span v-if="ev.isProjected" class="text-[9px] px-1 rounded bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 whitespace-nowrap">{{ languageText('预', 'PRE') }}</span>
                                             <span v-if="ev.fixedPrice" class="text-[10px] font-mono text-slate-400 whitespace-nowrap">{{ ev.fixedPrice }} {{ ev.currency }}</span>
                                             <span :class="['ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap',
                                                 ev.type === 'repeat' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
@@ -3999,7 +4023,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                         <template #label>
                             <div class="flex items-center gap-1">
                                 <span>{{ t('formName') }}</span>
-                                <el-tooltip :content="lang === 'zh' ? '填写服务的名称标识以供识别，为必填项。' : 'Identifier of the service, required.'" placement="top">
+                                <el-tooltip :content="languageText('填写服务的名称标识以供识别，为必填项。', 'Identifier of the service, required.')" placement="top">
                                     <span class="text-red-500 cursor-help font-bold">*</span>
                                 </el-tooltip>
                             </div>
@@ -4036,7 +4060,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
 
                     <!-- 第一行：模式标签 + 选择按钮同行 -->
                     <div class="flex items-center gap-3 mb-4">
-                        <span class="text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-1">{{ t('formType') }}<el-tooltip :content="lang === 'zh' ? '选择服务的计费模式：循环订阅、到期重置或固定重复，为必填项。' : 'Select the billing mode: Cycle, Reset or Repeat, required.'" placement="top"><span class="text-red-500 cursor-help font-bold">*</span></el-tooltip></span>
+                        <span class="text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap flex items-center gap-1">{{ t('formType') }}<el-tooltip :content="languageText('选择服务的计费模式：循环订阅、到期重置或固定重复，为必填项。', 'Select the billing mode: Cycle, Reset or Repeat, required.')" placement="top"><span class="text-red-500 cursor-help font-bold">*</span></el-tooltip></span>
                         <div class="radio-group-fix flex-1"
                             :style="{ opacity: isEdit ? 0.6 : 1, pointerEvents: isEdit ? 'none' : 'auto' }">
                             <div class="radio-item" :class="{ active: form.type === 'cycle' }"
@@ -4053,7 +4077,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             <template #label>
                                 <div class="flex items-center gap-1">
                                     <span>{{ t('interval') }}</span>
-                                    <el-tooltip :content="lang === 'zh' ? '服务每次续订的固定时长，为必填项。' : 'Duration of each subscription period, required.'" placement="top">
+                                    <el-tooltip :content="languageText('服务每次续订的固定时长，为必填项。', 'Duration of each subscription period, required.')" placement="top">
                                         <span class="text-red-500 cursor-help font-bold">*</span>
                                     </el-tooltip>
                                 </div>
@@ -4076,27 +4100,27 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                     <!-- Repeat Settings Panel -->
                     <div v-if="form.type === 'repeat' && form.repeat" class="p-4 mb-4 rounded-md border border-blue-200 bg-blue-50/50 dark:bg-slate-800/80 dark:border-slate-700 shadow-sm transition-all">
                         <div class="flex items-center gap-2 font-bold text-sm text-blue-800 dark:text-blue-300 mb-4 pb-2 border-b border-blue-100 dark:border-slate-700">
-                            <el-icon><Calendar /></el-icon>{{ lang === 'zh' ? '定期重复配置' : 'Recurrence Settings' }}
-                            <el-tooltip :content="lang === 'zh' ? '配置重复规则，至少需要设定频率，为必填项。' : 'Configure the recurrence rule. Frequency is required.'" placement="top"><span class="text-red-500 cursor-help font-bold">*</span></el-tooltip>
+                            <el-icon><Calendar /></el-icon>{{ languageText('定期重复配置', 'Recurrence Settings') }}
+                            <el-tooltip :content="languageText('配置重复规则，至少需要设定频率，为必填项。', 'Configure the recurrence rule. Frequency is required.')" placement="top"><span class="text-red-500 cursor-help font-bold">*</span></el-tooltip>
                         </div>
                         <div class="mb-4">
                             <el-form-item class="!mb-0 w-full">
                                 <template #label>
                                     <div class="flex items-center gap-1">
-                                        <span>{{ lang === 'zh' ? '重复频率' : 'Repeat Every' }}</span>
-                                        <el-tooltip :content="lang === 'zh' ? '设置重复的间隔和周期类型（日/周/月/年），为必填项。' : 'Set the interval and period type (Daily/Weekly/Monthly/Yearly), required.'" placement="top">
+                                        <span>{{ languageText('重复频率', 'Repeat Every') }}</span>
+                                        <el-tooltip :content="languageText('设置重复的间隔和周期类型（日/周/月/年），为必填项。', 'Set the interval and period type (Daily/Weekly/Monthly/Yearly), required.')" placement="top">
                                             <span class="text-red-500 cursor-help font-bold">*</span>
                                         </el-tooltip>
                                     </div>
                                 </template>
                                 <div class="flex items-center gap-2 w-full">
-                                    <span class="text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">{{ lang === 'zh' ? '每' : 'Every' }}</span>
+                                    <span class="text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">{{ languageText('每', 'Every') }}</span>
                                     <el-input-number v-model="form.repeat.interval" :min="1" controls-position="right" class="!w-24" :disabled="isEdit" />
                                     <el-select v-model="form.repeat.freq" class="flex-1" :disabled="isEdit">
-                                        <el-option :label="lang === 'zh' ? '日 (Daily)' : 'Daily'" value="daily"></el-option>
-                                        <el-option :label="lang === 'zh' ? '周 (Weekly)' : 'Weekly'" value="weekly"></el-option>
-                                        <el-option :label="lang === 'zh' ? '月 (Monthly)' : 'Monthly'" value="monthly"></el-option>
-                                        <el-option :label="lang === 'zh' ? '年 (Yearly)' : 'Yearly'" value="yearly"></el-option>
+                                        <el-option :label="languageText('日 (Daily)', 'Daily')" value="daily"></el-option>
+                                        <el-option :label="languageText('周 (Weekly)', 'Weekly')" value="weekly"></el-option>
+                                        <el-option :label="languageText('月 (Monthly)', 'Monthly')" value="monthly"></el-option>
+                                        <el-option :label="languageText('年 (Yearly)', 'Yearly')" value="yearly"></el-option>
                                     </el-select>
                                 </div>
                             </el-form-item>
@@ -4104,9 +4128,9 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
 
                         <!-- 每年可选定月份 -->
                         <div v-if="form.repeat.freq === 'yearly'" class="mb-4">
-                            <el-form-item :label="lang === 'zh' ? '指定月份' : 'By Month'" class="!mb-0 w-full">
-                                <el-select v-model="form.repeat.bymonth" multiple clearable collapse-tags collapse-tags-tooltip :max-collapse-tags="5" :placeholder="lang === 'zh' ? '默认为开始月份' : 'Start Month Default'" style="width:100%" :disabled="isEdit">
-                                    <el-option v-for="m in 12" :key="'m'+m" :label="lang === 'zh' ? ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'][m-1] : ['January','February','March','April','May','June','July','August','September','October','November','December'][m-1]" :value="m"></el-option>
+                            <el-form-item :label="languageText('指定月份', 'By Month')" class="!mb-0 w-full">
+                                <el-select v-model="form.repeat.bymonth" multiple clearable collapse-tags collapse-tags-tooltip :max-collapse-tags="5" :placeholder="languageText('默认为开始月份', 'Start Month Default')" style="width:100%" :disabled="isEdit">
+                                    <el-option v-for="m in 12" :key="'m'+m" :label="lang !== 'en' ? ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'][m-1] : ['January','February','March','April','May','June','July','August','September','October','November','December'][m-1]" :value="m"></el-option>
                                 </el-select>
                             </el-form-item>
                         </div>
@@ -4116,55 +4140,55 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             <el-form-item class="!mb-0 w-full">
                                 <template #label>
                                     <div class="flex items-center gap-1">
-                                        <span>{{ lang === 'zh' ? '指定触发天数' : 'TRIGGER DAYS' }}</span>
-                                        <el-tooltip :content="lang === 'zh' ? '在每个周期内的第几天触发。第1天 = 周期起始日当天。例如每5天中选第3天和第5天，则在周期的第3天和最后一天触发。' : 'Which day in each cycle to trigger. Day 1 = cycle start. E.g. for Every 5 days, select Day 3 and Day 5.'" placement="top">
+                                        <span>{{ languageText('指定触发天数', 'TRIGGER DAYS') }}</span>
+                                        <el-tooltip :content="languageText('在每个周期内的第几天触发。第1天 = 周期起始日当天。例如每5天中选第3天和第5天，则在周期的第3天和最后一天触发。', 'Which day in each cycle to trigger. Day 1 = cycle start. E.g. for Every 5 days, select Day 3 and Day 5.')" placement="top">
                                             <span class="text-amber-500 cursor-help">&#9432;</span>
                                         </el-tooltip>
                                     </div>
                                 </template>
-                                <el-select v-model="form.repeat.bycycleday" multiple clearable collapse-tags :max-collapse-tags="5" :placeholder="lang === 'zh' ? '可选，选择周期中的第几天' : 'Optional, select which day in cycle'" style="width:100%" filterable allow-create default-first-option :disabled="isEdit">
-                                    <el-option v-for="d in form.repeat.interval" :key="'cd'+d" :label="lang === 'zh' ? '第' + d + '天' : 'Day ' + d" :value="d"></el-option>
+                                <el-select v-model="form.repeat.bycycleday" multiple clearable collapse-tags :max-collapse-tags="5" :placeholder="languageText('可选，选择周期中的第几天', 'Optional, select which day in cycle')" style="width:100%" filterable allow-create default-first-option :disabled="isEdit">
+                                    <el-option v-for="d in form.repeat.interval" :key="'cd'+d" :label="lang !== 'en' ? '第' + d + '天' : 'Day ' + d" :value="d"></el-option>
                                 </el-select>
                             </el-form-item>
                         </div>
 
                         <!-- monthly/yearly: 指定日期 -->
                         <div v-if="['monthly', 'yearly'].includes(form.repeat.freq)" class="mb-4">
-                            <el-form-item :label="lang === 'zh' ? '指定日期' : 'BY DAY'" class="!mb-0 w-full">
-                                <el-select v-model="form.repeat.bymonthday" multiple clearable collapse-tags :max-collapse-tags="5" :placeholder="lang === 'zh' ? '默认为开始日，如输入 -1 代表最后一天' : 'Start Day Default, e.g. -1 for Last Day'" style="width:100%" filterable allow-create default-first-option :disabled="isEdit">
-                                    <el-option v-for="d in 31" :key="'d'+d" :label="d + (lang === 'zh' ? '日':'')" :value="String(d)"></el-option>
-                                    <el-option :label="lang === 'zh' ? '倒数第1天 (-1)' : 'Last Day (-1)'" :value="'-1'"></el-option>
+                            <el-form-item :label="languageText('指定日期', 'BY DAY')" class="!mb-0 w-full">
+                                <el-select v-model="form.repeat.bymonthday" multiple clearable collapse-tags :max-collapse-tags="5" :placeholder="languageText('默认为开始日，如输入 -1 代表最后一天', 'Start Day Default, e.g. -1 for Last Day')" style="width:100%" filterable allow-create default-first-option :disabled="isEdit">
+                                    <el-option v-for="d in 31" :key="'d'+d" :label="d + (languageText('日', ''))" :value="String(d)"></el-option>
+                                    <el-option :label="languageText('倒数第1天 (-1)', 'Last Day (-1)')" :value="'-1'"></el-option>
                                 </el-select>
                             </el-form-item>
                         </div>
                         
                         <!-- 每周等可选定周几 -->
                         <div v-if="['weekly', 'monthly', 'yearly'].includes(form.repeat.freq)" class="mb-4">
-                            <el-form-item :label="lang === 'zh' ? '指定星期' : 'By Week Day'" class="!mb-0 w-full">
-                                <el-select v-model="form.repeat.byweekday" multiple clearable collapse-tags :max-collapse-tags="5" :placeholder="lang === 'zh' ? '不指定 / 默认为开始日的星期' : 'Default to Start Weekday'" style="width:100%" :disabled="isEdit">
-                                    <el-option :label="lang === 'zh' ? '周一' : 'Mon'" :value="1"></el-option>
-                                    <el-option :label="lang === 'zh' ? '周二' : 'Tue'" :value="2"></el-option>
-                                    <el-option :label="lang === 'zh' ? '周三' : 'Wed'" :value="3"></el-option>
-                                    <el-option :label="lang === 'zh' ? '周四' : 'Thu'" :value="4"></el-option>
-                                    <el-option :label="lang === 'zh' ? '周五' : 'Fri'" :value="5"></el-option>
-                                    <el-option :label="lang === 'zh' ? '周六' : 'Sat'" :value="6"></el-option>
-                                    <el-option :label="lang === 'zh' ? '周日' : 'Sun'" :value="0"></el-option>
+                            <el-form-item :label="languageText('指定星期', 'By Week Day')" class="!mb-0 w-full">
+                                <el-select v-model="form.repeat.byweekday" multiple clearable collapse-tags :max-collapse-tags="5" :placeholder="languageText('不指定 / 默认为开始日的星期', 'Default to Start Weekday')" style="width:100%" :disabled="isEdit">
+                                    <el-option :label="languageText('周一', 'Mon')" :value="1"></el-option>
+                                    <el-option :label="languageText('周二', 'Tue')" :value="2"></el-option>
+                                    <el-option :label="languageText('周三', 'Wed')" :value="3"></el-option>
+                                    <el-option :label="languageText('周四', 'Thu')" :value="4"></el-option>
+                                    <el-option :label="languageText('周五', 'Fri')" :value="5"></el-option>
+                                    <el-option :label="languageText('周六', 'Sat')" :value="6"></el-option>
+                                    <el-option :label="languageText('周日', 'Sun')" :value="0"></el-option>
                                 </el-select>
                             </el-form-item>
                         </div>
 
                         <!-- 匹配结果位选 (如: 当月最后一个周五) -->
                         <div v-if="['monthly', 'yearly'].includes(form.repeat.freq)">
-                            <el-form-item :label="lang === 'zh' ? '指定位置' : 'By Set Position'" class="!mb-0 w-full">
-                                <el-select v-model="form.repeat.bysetpos" clearable :placeholder="lang === 'zh' ? '输入或选择任意数字 (如 -3 代表倒数第 3 个)' : 'Type or select a number'" style="width:100%" filterable allow-create default-first-option :disabled="isEdit">
-                                    <el-option :label="lang === 'zh' ? '集合内第一个 (1)' : 'First in set (1)'" :value="'1'"></el-option>
-                                    <el-option :label="lang === 'zh' ? '集合内第二个 (2)' : 'Second in set (2)'" :value="'2'"></el-option>
-                                    <el-option :label="lang === 'zh' ? '集合内第三个 (3)' : 'Third in set (3)'" :value="'3'"></el-option>
-                                    <el-option :label="lang === 'zh' ? '集合内第四个 (4)' : 'Fourth in set (4)'" :value="'4'"></el-option>
-                                    <el-option :label="lang === 'zh' ? '集合内最后一个 (-1)' : 'Last in set (-1)'" :value="'-1'"></el-option>
-                                    <el-option :label="lang === 'zh' ? '集合内倒数第二个 (-2)' : 'Second to last (-2)'" :value="'-2'"></el-option>
-                                    <el-option :label="lang === 'zh' ? '集合内倒数第三个 (-3)' : 'Third to last (-3)'" :value="'-3'"></el-option>
-                                    <el-option :label="lang === 'zh' ? '集合内倒数第四个 (-4)' : 'Fourth to last (-4)'" :value="'-4'"></el-option>
+                            <el-form-item :label="languageText('指定位置', 'By Set Position')" class="!mb-0 w-full">
+                                <el-select v-model="form.repeat.bysetpos" clearable :placeholder="languageText('输入或选择任意数字 (如 -3 代表倒数第 3 个)', 'Type or select a number')" style="width:100%" filterable allow-create default-first-option :disabled="isEdit">
+                                    <el-option :label="languageText('集合内第一个 (1)', 'First in set (1)')" :value="'1'"></el-option>
+                                    <el-option :label="languageText('集合内第二个 (2)', 'Second in set (2)')" :value="'2'"></el-option>
+                                    <el-option :label="languageText('集合内第三个 (3)', 'Third in set (3)')" :value="'3'"></el-option>
+                                    <el-option :label="languageText('集合内第四个 (4)', 'Fourth in set (4)')" :value="'4'"></el-option>
+                                    <el-option :label="languageText('集合内最后一个 (-1)', 'Last in set (-1)')" :value="'-1'"></el-option>
+                                    <el-option :label="languageText('集合内倒数第二个 (-2)', 'Second to last (-2)')" :value="'-2'"></el-option>
+                                    <el-option :label="languageText('集合内倒数第三个 (-3)', 'Third to last (-3)')" :value="'-3'"></el-option>
+                                    <el-option :label="languageText('集合内倒数第四个 (-4)', 'Fourth to last (-4)')" :value="'-4'"></el-option>
                                 </el-select>
                             </el-form-item>
                         </div>
@@ -4174,18 +4198,18 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             <div class="flex items-center">
                                 <el-icon class="text-indigo-500 mr-2 text-lg shrink-0"><Calendar /></el-icon>
                                 <span class="text-sm font-medium text-indigo-900 dark:text-indigo-300">
-                                    {{ lang === 'zh' ? '规则预览：' : 'Description: ' }}
+                                    {{ languageText('规则预览：', 'Description: ') }}
                                     <span class="font-bold border-b border-indigo-300 dark:border-indigo-600 border-dashed pb-0.5">{{ repeatDescription }}</span>
                                 </span>
                             </div>
                             <div v-if="repeatUpcomingDates" class="flex items-center">
                                 <el-icon class="text-indigo-400 mr-2 text-lg shrink-0"><Calendar /></el-icon>
                                 <span class="text-sm font-medium text-indigo-800 dark:text-indigo-400">
-                                    {{ lang === 'zh' ? '预计到期：' : 'Expected: ' }}
+                                    {{ languageText('预计到期：', 'Expected: ') }}
                                     <el-tooltip effect="dark" placement="top">
                                         <template #content>
                                             <div>
-                                                <div style="font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px;">{{ lang === 'zh' ? '未来 10 次到期建议：' : 'Next 10 Occurrences:' }}</div>
+                                                <div style="font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px;">{{ languageText('未来 10 次到期建议：', 'Next 10 Occurrences:') }}</div>
                                                 <div style="white-space: pre-wrap; line-height: 1.6;" v-text="repeatUpcomingDates.full"></div>
                                             </div>
                                         </template>
@@ -4202,7 +4226,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                 <div class="flex items-center gap-2">
                                     <div class="flex items-center gap-1">
                                         <span>{{ t('createDate') }}</span>
-                                        <el-tooltip :content="lang === 'zh' ? '首次购买/创建该服务的日期，为必填项。' : 'Original purchase/creation date, required.'" placement="top">
+                                        <el-tooltip :content="languageText('首次购买/创建该服务的日期，为必填项。', 'Original purchase/creation date, required.')" placement="top">
                                             <span class="text-red-500 cursor-help font-bold">*</span>
                                         </el-tooltip>
                                     </div>
@@ -4240,7 +4264,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                 <div class="flex items-center gap-2">
                                     <div class="flex items-center gap-1">
                                         <span>{{ t('lastRenew') }}</span>
-                                        <el-tooltip :content="lang === 'zh' ? '最近一次完成续费的日期，系统将以此为基准推算下一次到期日期，为必填项。' : 'The date of the most recent renewal, required.'" placement="top">
+                                        <el-tooltip :content="languageText('最近一次完成续费的日期，系统将以此为基准推算下一次到期日期，为必填项。', 'The date of the most recent renewal, required.')" placement="top">
                                             <span class="text-red-500 cursor-help font-bold">*</span>
                                         </el-tooltip>
                                     </div>
@@ -4308,7 +4332,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             <template #label>
                                 <div class="flex items-center gap-1">
                                     <span>{{ t('policyNotify') }}</span>
-                                    <el-tooltip :content="lang === 'zh' ? '距到期多少天时开始发送提醒通知，为必须数值。' : 'Days before expiration to start alerting, required.'" placement="top">
+                                    <el-tooltip :content="languageText('距到期多少天时开始发送提醒通知，为必须数值。', 'Days before expiration to start alerting, required.')" placement="top">
                                         <span class="text-red-500 cursor-help font-bold">*</span>
                                     </el-tooltip>
                                 </div>
@@ -4380,10 +4404,10 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                 <Files />
                             </el-icon>
                             <span class="hidden sm:block">
-                                {{ tab === 'pref' ? (lang === 'zh' ? '偏好设置' : 'Preferences') :
-                                    tab === 'notify' ? (lang === 'zh' ? '通知配置' : 'Notifications') :
-                                        tab === 'calendar' ? (lang === 'zh' ? '日历订阅' : 'Calendar') :
-                                            (lang === 'zh' ? '数据管理' : 'Data')
+                                {{ tab === 'pref' ? (languageText('偏好设置', 'Preferences')) :
+                                    tab === 'notify' ? (languageText('通知配置', 'Notifications')) :
+                                        tab === 'calendar' ? (languageText('日历订阅', 'Calendar')) :
+                                            (languageText('数据管理', 'Data'))
                                 }}
                             </span>
                         </div>
@@ -4397,7 +4421,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             <div v-if="activeTab === 'pref'" class="space-y-4">
                                 <h3
                                     class="text-base font-bold text-slate-800 dark:text-gray-100 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800 flex items-center gap-2">
-                                    {{ lang === 'zh' ? '偏好设置' : 'Preferences' }}
+                                    {{ languageText('偏好设置', 'Preferences') }}
                                 </h3>
                                 <el-form :model="settingsForm" label-position="top">
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4405,7 +4429,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                             <el-select v-model="settingsForm.timezone" style="width:100%" filterable
                                                 placeholder="Select Timezone">
                                                 <el-option v-for="item in timezoneList" :key="item.value"
-                                                    :label="item.label" :value="item.value"></el-option>
+                                                    :label="languageText(item.label, item.label)" :value="item.value"></el-option>
                                             </el-select>
                                         </el-form-item>
                                         <el-form-item :label="t('defaultCurrency')">
@@ -4430,7 +4454,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             <div v-if="activeTab === 'notify'" class="space-y-4">
                                 <h3
                                     class="text-base font-bold text-slate-800 dark:text-gray-100 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800">
-                                    {{ lang === 'zh' ? '通知配置' : 'Notifications' }}</h3>
+                                    {{ languageText('通知配置', 'Notifications') }}</h3>
 
                                 <div
                                     class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3 p-3 bg-blue-50 dark:bg-slate-800/50 rounded-lg">
@@ -4451,7 +4475,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                 <div v-if="settingsForm.enableNotify">
                                     <div class="flex items-center justify-between mb-4">
                                         <div class="text-sm font-bold text-gray-600 dark:text-gray-400">{{
-                                            lang === 'zh' ? '渠道配置' : 'Channel Config' }}</div>
+                                            languageText('渠道配置', 'Channel Config') }}</div>
                                         <el-button type="primary" link @click="openAddChannel" :icon="Plus">{{
                                             t('addChannel')
                                         }}</el-button>
@@ -4468,20 +4492,20 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-100 dark:border-blue-800 transition-all gap-2 box-border w-full overflow-hidden">
                                              <div class="flex items-center gap-2 flex-wrap">
                                                  <el-checkbox :model-value="isAllSelected" @change="toggleSelectAll" :indeterminate="isIndeterminate">
-                                                     <span class="text-xs font-bold text-blue-600 dark:text-blue-400">{{ lang === 'zh' ? '全选' : 'Select All' }}</span>
+                                                     <span class="text-xs font-bold text-blue-600 dark:text-blue-400">{{ languageText('全选', 'Select All') }}</span>
                                                  </el-checkbox>
                                                  <el-button link type="primary" size="small" @click="inverseSelection" style="padding:0;">
-                                                     {{ lang === 'zh' ? '反选' : 'Inverse' }}
+                                                     {{ languageText('反选', 'Inverse') }}
                                                  </el-button>
                                                  <span v-if="selectedChannelIds.length > 0" class="text-xs font-bold text-blue-600 dark:text-blue-400">
-                                                     ({{ selectedChannelIds.length }} {{ lang === 'zh' ? '已选' : 'Selected' }})
+                                                     ({{ selectedChannelIds.length }} {{ languageText('已选', 'Selected') }})
                                                  </span>
                                              </div>
                                              
                                              <div v-if="selectedChannelIds.length > 0" class="flex flex-wrap gap-2 w-full sm:w-auto">
                                                  <el-button type="success" size="small" plain @click="batchUpdateChannels('enable')">{{ t('active') }}</el-button>
                                                  <el-button type="warning" size="small" plain @click="batchUpdateChannels('disable')">{{ t('disabledText') }}</el-button>
-                                                 <el-button type="primary" size="small" @click="openAssignDialog">{{ lang === 'zh' ? '分配' : 'Assign' }}</el-button>
+                                                 <el-button type="primary" size="small" @click="openAssignDialog">{{ languageText('分配', 'Assign') }}</el-button>
                                                  <el-button type="danger" size="small" plain @click="batchUpdateChannels('delete')">{{ t('delete') }}</el-button>
                                              </div>
                                          </div>
@@ -4614,8 +4638,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                         <div v-if="settingsForm.channels && settingsForm.channels.length > channelLimit"
                                             class="text-center py-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                             @click="loadMoreChannels">
-                                            <span class="text-xs text-blue-500 font-bold">{{ lang === 'zh' ? '加载更多...' :
-                                                'Load More...' }}</span>
+                                            <span class="text-xs text-blue-500 font-bold">{{ languageText('加载更多...', 'Load More...') }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -4627,16 +4650,14 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             <div v-if="activeTab === 'calendar'">
                                 <h3
                                     class="text-base font-bold text-slate-800 dark:text-gray-100 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800">
-                                    {{ lang === 'zh' ? '日历订阅' : 'Calendar Subscription' }}</h3>
+                                    {{ languageText('日历订阅', 'Calendar Subscription') }}</h3>
 
                                 <div class="flex items-start justify-between gap-3 mb-4">
                                     <div class="text-xs text-gray-500 leading-relaxed max-w-[560px]">
-                                        {{ lang === 'zh'
-                                            ? '默认订阅兼容旧版单一 token。您可以继续保留它，也可以新增多个独立订阅链接，为每个链接选择不同事项。留空事项表示包含全部事项。'
-                                            : 'The default subscription keeps legacy single-token compatibility. Add more feeds and assign different items to each. Leaving items empty includes everything.' }}
+                                        {{ languageText('默认订阅兼容旧版单一 token。您可以继续保留它，也可以新增多个独立订阅链接，为每个链接选择不同事项。留空事项表示包含全部事项。', 'The default subscription keeps legacy single-token compatibility. Add more feeds and assign different items to each. Leaving items empty includes everything.') }}
                                     </div>
                                     <el-button type="primary" link @click="addCalendarSubscription" :icon="Plus">
-                                        {{ lang === 'zh' ? '新增订阅' : 'Add Subscription' }}
+                                        {{ languageText('新增订阅', 'Add Subscription') }}
                                     </el-button>
                                 </div>
 
@@ -4651,12 +4672,12 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                                         :class="sub.isDefault
                                                             ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
                                                             : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'">
-                                                        {{ sub.isDefault ? (lang === 'zh' ? '默认订阅' : 'DEFAULT') : (lang === 'zh' ? '自定义订阅' : 'CUSTOM') }}
+                                                        {{ sub.isDefault ? (languageText('默认订阅', 'DEFAULT')) : (languageText('自定义订阅', 'CUSTOM')) }}
                                                     </span>
                                                     <span class="text-xs text-gray-400">{{ getCalendarSubscriptionSummary(sub) }}</span>
                                                 </div>
                                                 <el-input v-model="sub.name"
-                                                    :placeholder="lang === 'zh' ? '例如：生日提醒' : 'e.g. Birthday Reminders'">
+                                                    :placeholder="languageText('例如：生日提醒', 'e.g. Birthday Reminders')">
                                                     <template #prefix>
                                                         <el-icon>
                                                             <Calendar />
@@ -4675,7 +4696,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                                 </el-button>
                                                 <el-button v-if="!sub.isDefault" type="danger" link size="small"
                                                     @click="removeCalendarSubscription(sub)">
-                                                    {{ lang === 'zh' ? '删除' : 'Delete' }}
+                                                    {{ languageText('删除', 'Delete') }}
                                                 </el-button>
                                             </div>
                                         </div>
@@ -4695,16 +4716,16 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                             <div>
                                                 <div class="flex items-center justify-between gap-3 mb-1">
                                                     <div class="text-xs text-gray-500">
-                                                        {{ lang === 'zh' ? '关联事项' : 'Linked Items' }}
+                                                        {{ languageText('关联事项', 'Linked Items') }}
                                                     </div>
                                                     <div class="text-[11px] text-gray-400">
-                                                        {{ lang === 'zh' ? '可按项目名称搜索' : 'Search by item name' }}
+                                                        {{ languageText('可按项目名称搜索', 'Search by item name') }}
                                                     </div>
                                                 </div>
                                                 <el-select v-model="sub.itemIds" multiple filterable clearable
                                                     collapse-tags collapse-tags-tooltip :max-collapse-tags="4"
                                                     style="width:100%"
-                                                    :placeholder="lang === 'zh' ? '留空则包含全部事项' : 'Leave empty for all items'">
+                                                    :placeholder="languageText('留空则包含全部事项', 'Leave empty for all items')">
                                                     <el-option v-for="item in calendarSubscriptionOptions" :key="item.value"
                                                         :label="item.label" :value="item.value">
                                                         <div class="flex items-center justify-between gap-3">
@@ -4715,9 +4736,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                                     </el-option>
                                                 </el-select>
                                                 <div class="mt-2 text-xs text-gray-400 leading-relaxed">
-                                                    {{ lang === 'zh'
-                                                        ? '选择后，该订阅只输出这些事项；清空则输出全部启用事项。刷新 token 会立即让旧链接失效。'
-                                                        : 'When items are selected, this feed only exports those items. Clearing the selection exports all enabled items. Resetting the token invalidates the old URL immediately.' }}
+                                                    {{ languageText('选择后，该订阅只输出这些事项；清空则输出全部启用事项。刷新 token 会立即让旧链接失效。', 'When items are selected, this feed only exports those items. Clearing the selection exports all enabled items. Resetting the token invalidates the old URL immediately.') }}
                                                 </div>
                                             </div>
                                         </div>
@@ -4729,29 +4748,29 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             <div v-if="activeTab === 'data'">
                                 <h3
                                     class="text-base font-bold text-slate-800 dark:text-gray-100 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800">
-                                    {{ lang === 'zh' ? '数据管理' : 'Data Management' }}</h3>
+                                    {{ languageText('数据管理', 'Data Management') }}</h3>
 
                                 <div class="space-y-3">
                                     <div class="p-3 border border-gray-100 dark:border-slate-700 rounded-lg">
                                         <div class="font-bold text-slate-700 dark:text-gray-200">{{
-                                            lang === 'zh' ? '备份密钥' : 'Backup Key'
+                                            languageText('备份密钥', 'Backup Key')
                                         }}</div>
                                         <el-input v-model="settingsForm.backupKey"
-                                            :placeholder="lang === 'zh' ? '至少8位，包含字母和数字 (留空不启用)' : 'Min 8 chars, Alphanumeric (Optional)'"
+                                            :placeholder="languageText('至少8位，包含字母和数字 (留空不启用)', 'Min 8 chars, Alphanumeric (Optional)')"
                                             show-password type="password">
                                             <template #prefix><el-icon>
                                                     <Lock />
                                                 </el-icon></template>
                                             <template #append>
                                                 <el-button :icon="RefreshRight" @click="generateBackupKey"
-                                                    :title="lang === 'zh' ? '随机生成密钥' : 'Generate Random Key'"
+                                                    :title="languageText('随机生成密钥', 'Generate Random Key')"
                                                     style="margin: -1px; padding: 8px 10px; border-right: 1px solid var(--el-border-color);" />
                                                 <el-button :icon="DocumentCopy" @click="copyBackupKey"
-                                                    :title="lang === 'zh' ? '复制密钥' : 'Copy Key'"
+                                                    :title="languageText('复制密钥', 'Copy Key')"
                                                     style="margin: -1px; padding: 8px 10px;" />
                                             </template>
                                         </el-input>
-                                        <div class="text-[10px] text-gray-400 mt-1">{{ lang === 'zh' ? '用于 /api/backup 接口的专用访问密钥，配置后可替代 JWT Token 使用。' : 'Dedicated key for /api/backup, can be used instead of JWT Token.' }}
+                                        <div class="text-[10px] text-gray-400 mt-1">{{ languageText('用于 /api/backup 接口的专用访问密钥，配置后可替代 JWT Token 使用。', 'Dedicated key for /api/backup, can be used instead of JWT Token.') }}
                                         </div>
                                     </div>
 
@@ -4760,10 +4779,10 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                         <div>
                                             <div class="font-bold text-slate-700 dark:text-gray-200">{{ t('btnExport')
                                             }}</div>
-                                            <div class="text-xs text-gray-400 mt-1">{{ lang === 'zh' ? '导出所有数据和配置为 JSON 文件':'Export all data and settings as JSON' }}</div>
+                                            <div class="text-xs text-gray-400 mt-1">{{ languageText('导出所有数据和配置为 JSON 文件', 'Export all data and settings as JSON') }}</div>
                                         </div>
                                         <el-button type="success" plain :icon="Download" @click="exportData">{{
-                                            lang === 'zh' ? '导出' : 'Export' }}</el-button>
+                                            languageText('导出', 'Export') }}</el-button>
                                     </div>
 
                                     <div
@@ -4771,11 +4790,11 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                         <div>
                                             <div class="font-bold text-slate-700 dark:text-gray-200">{{ t('btnImport')
                                             }}</div>
-                                            <div class="text-xs text-gray-400 mt-1">{{ lang === 'zh' ? '从 JSON 文件恢复数据':'Restore data from JSON file' }}</div>
+                                            <div class="text-xs text-gray-400 mt-1">{{ languageText('从 JSON 文件恢复数据', 'Restore data from JSON file') }}</div>
                                         </div>
                                         <div>
                                             <el-button type="warning" plain :icon="Upload" @click="triggerImport">{{
-                                                lang === 'zh' ? '导入' : 'Import' }}</el-button>
+                                                languageText('导入', 'Import') }}</el-button>
                                             <input type="file" ref="importRef" style="display:none" accept=".json"
                                                 @change="handleImportFile">
                                         </div>
@@ -4785,12 +4804,12 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                         class="p-3 border border-gray-100 dark:border-slate-700 rounded-lg flex items-center justify-between bg-gray-50 dark:bg-slate-800/30">
                                         <div>
                                             <div class="font-bold text-slate-700 dark:text-gray-200">{{
-                                                lang === 'zh' ? '数据迁移' : 'Migration' }}</div>
+                                                languageText('数据迁移', 'Migration') }}</div>
                                             <div class="text-xs text-gray-400 mt-1">{{
-                                                lang === 'zh' ? '迁移旧版账单与通知渠道配置' : 'Migrate legacy bills & channels' }}</div>
+                                                languageText('迁移旧版账单与通知渠道配置', 'Migrate legacy bills & channels') }}</div>
                                         </div>
                                         <el-button type="info" plain :icon="Sort" @click="migrateOldData">
-                                            {{ lang === 'zh' ? '迁移' : 'Migrate' }}
+                                            {{ languageText('迁移', 'Migrate') }}
                                         </el-button>
                                     </div>
                                 </div>
@@ -5007,7 +5026,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                                 placeholder="Sign Key (Optional)"></el-input></el-form-item>
                     </div>
                     <div v-else-if="channelForm.type === 'wecom'" class="space-y-3">
-                        <el-form-item :label="lang === 'zh' ? 'Key' : 'Key'"><el-input v-model="channelForm.config.token" placeholder="Key (e.g. 693...)" ></el-input></el-form-item>
+                        <el-form-item :label="lang !== 'en' ? 'Key' : 'Key'"><el-input v-model="channelForm.config.token" placeholder="Key (e.g. 693...)" ></el-input></el-form-item>
                     </div>
                     <div v-else-if="channelForm.type === 'resend'" class="space-y-3">
                         <el-form-item :label="t('lblApiKey')"><el-input
@@ -5245,10 +5264,10 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                 </div>
             </el-dialog>
             <!-- Batch Assign Dialog -->
-            <el-dialog v-model="assignDialogVisible" :title="lang === 'zh' ? '批量分配渠道' : 'Batch Assign Channels'" width="95%" style="max-width: 500px;" align-center class="mecha-panel">
+            <el-dialog v-model="assignDialogVisible" :title="languageText('批量分配渠道', 'Batch Assign Channels')" width="95%" style="max-width: 500px;" align-center class="mecha-panel">
                 <el-form :model="assignForm" label-position="top">
-                    <el-form-item :label="lang === 'zh' ? '选择目标服务' : 'Target Services'">
-                        <el-select v-model="assignForm.serviceIds" multiple filterable clearable collapse-tags :max-collapse-tags="3" collapse-tags-tooltip style="width:100%" :placeholder="lang === 'zh' ? '搜索并选择服务...' : 'Search & select services...'">
+                    <el-form-item :label="languageText('选择目标服务', 'Target Services')">
+                        <el-select v-model="assignForm.serviceIds" multiple filterable clearable collapse-tags :max-collapse-tags="3" collapse-tags-tooltip style="width:100%" :placeholder="languageText('搜索并选择服务...', 'Search & select services...')">
                             <el-option v-for="item in list" :key="item.id" :label="item.name" :value="item.id">
                                 <div class="flex items-center gap-2">
                                     <span class="w-2 h-2 rounded-full" :class="item.enabled ? 'bg-green-500' : 'bg-gray-300'"></span>
@@ -5257,11 +5276,11 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                             </el-option>
                         </el-select>
                     </el-form-item>
-                    <el-form-item :label="lang === 'zh' ? '分配策略' : 'Assignment Strategy'">
+                    <el-form-item :label="languageText('分配策略', 'Assignment Strategy')">
                         <el-radio-group v-model="assignForm.strategy">
-                            <el-radio label="append">{{ lang === 'zh' ? '追加 (保留原有)' : 'Append (Keep existing)' }}</el-radio>
-                            <el-radio label="overwrite">{{ lang === 'zh' ? '覆盖 (替换原有)' : 'Overwrite (Replace existing)' }}</el-radio>
-                            <el-radio label="remove">{{ lang === 'zh' ? '移除 (从服务中删除)' : 'Remove (Delete from services)' }}</el-radio>
+                            <el-radio label="append">{{ languageText('追加 (保留原有)', 'Append (Keep existing)') }}</el-radio>
+                            <el-radio label="overwrite">{{ languageText('覆盖 (替换原有)', 'Overwrite (Replace existing)') }}</el-radio>
+                            <el-radio label="remove">{{ languageText('移除 (从服务中删除)', 'Remove (Delete from services)') }}</el-radio>
                         </el-radio-group>
                     </el-form-item>
                 </el-form>
@@ -5272,17 +5291,17 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
             </el-dialog>
 
             <!-- 批量分配列表通知渠道的弹窗 -->
-            <el-dialog v-model="listBatchAssignDialogVisible" :title="lang === 'zh' ? '批量分配通知渠道' : 'Batch Assign Channels'" width="95%" align-center class="!rounded-none mecha-panel" style="max-width: 680px; clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);">
+            <el-dialog v-model="listBatchAssignDialogVisible" :title="languageText('批量分配通知渠道', 'Batch Assign Channels')" width="95%" align-center class="!rounded-none mecha-panel" style="max-width: 680px; clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);">
                 <div class="mb-4">
-                    <div class="text-xs font-bold text-gray-500 mb-2">{{ lang === 'zh' ? '分配策略' : 'Strategy' }}</div>
+                    <div class="text-xs font-bold text-gray-500 mb-2">{{ languageText('分配策略', 'Strategy') }}</div>
                     <el-radio-group v-model="listBatchAssignForm.strategy">
-                        <el-radio label="append">{{ lang === 'zh' ? '追加 (保留原有)' : 'Append' }}</el-radio>
-                        <el-radio label="overwrite">{{ lang === 'zh' ? '覆盖 (替换原有)' : 'Overwrite' }}</el-radio>
-                        <el-radio label="remove">{{ lang === 'zh' ? '移除 (取消选中渠道)' : 'Remove' }}</el-radio>
+                        <el-radio label="append">{{ languageText('追加 (保留原有)', 'Append') }}</el-radio>
+                        <el-radio label="overwrite">{{ languageText('覆盖 (替换原有)', 'Overwrite') }}</el-radio>
+                        <el-radio label="remove">{{ languageText('移除 (取消选中渠道)', 'Remove') }}</el-radio>
                     </el-radio-group>
                 </div>
                 <div class="mb-2">
-                    <div class="text-xs font-bold text-gray-500 mb-2">{{ lang === 'zh' ? '选择通知渠道' : 'Select Channels' }}</div>
+                    <div class="text-xs font-bold text-gray-500 mb-2">{{ languageText('选择通知渠道', 'Select Channels') }}</div>
                     <el-select v-model="listBatchAssignForm.channels" multiple collapse-tags placeholder="Select channels" style="width: 100%">
                         <el-option v-for="ch in settings.channels || []" :key="ch.id" :label="ch.name" :value="ch.id">
                             <div class="flex items-center gap-2">
@@ -5294,7 +5313,7 @@ const openLink = (url) => { if (url) window.open(url, '_blank'); };
                     </el-select>
                 </div>
                 <div class="text-xs text-blue-500 mt-2 bg-blue-50 dark:bg-slate-800 p-2 rounded">
-                    {{ lang === 'zh' ? `将对选中的 ${selectedListItems.length} 个服务应用此规则` : `Will apply to ${selectedListItems.length} selected services` }}
+                    {{ languageText(`将对选中的 ${selectedListItems.length} 个服务应用此规则`, `Will apply to ${selectedListItems.length} selected services`) }}
                 </div>
                 <template #footer>
                     <div class="flex justify-end gap-2">
