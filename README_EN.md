@@ -58,7 +58,7 @@
 
 ### Method 1: One-Click Deployment (Recommended)
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ieax/renewhelper)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/zeroasuka/renewhelper)
 
 1.  Click the button above.
 2.  Authorize Cloudflare to access your GitHub account (to Fork the repository).

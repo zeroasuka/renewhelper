@@ -57,7 +57,7 @@
 
 ### 方式一：自动一键部署 (推荐)
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ieax/renewhelper)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/zeroasuka/renewhelper)
 
 1.  点击上方按钮。
 2.  授权 Cloudflare 访问您的 GitHub 账户（用于 Fork 仓库）。
